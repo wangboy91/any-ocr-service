@@ -1,7 +1,7 @@
 [project]
 name = "any-ocr-service"
-version = "0.4.0"
-description = "多格式 → Markdown 转换服务（PDF OCR + anydoc Office 引擎，RapidOCR + llama-server VLM）"
+version = "0.5.0"
+description = "多格式 → Markdown 转换服务（PDF 表格提取 + OCR + anydoc Office 引擎，RapidOCR + llama-server VLM）"
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }

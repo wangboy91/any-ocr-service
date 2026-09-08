@@ -2,14 +2,18 @@
 
 主流程: PDF 渲染 → RapidOCR 整页识别；可选 VLM 对低置信度/表格区域精细识别
 """
+import logging
 import os
 import re
 
 from ..config import settings
 from .office import office_to_md
-from .pdf import render_pdf_pages
+from .pdf import render_pdf_pages, is_text_pdf
 from .rapid import RapidEngine, Region
+from .table import pdf_text_tables_to_md
 from .vlm import VlmEngine
+
+logger = logging.getLogger(__name__)
 
 # 直接解析（无需 OCR）的文本类格式
 _TEXT_EXTS = {".txt", ".md", ".markdown", ".csv"}
@@ -43,6 +47,23 @@ class AnyOcrEngine:
         """
         pdf_path = os.path.abspath(pdf_path)
         base = os.path.splitext(os.path.basename(pdf_path))[0]
+
+        # 文本型 PDF：直接提取文本+表格（快、保结构），无需 OCR
+        if is_text_pdf(pdf_path):
+            try:
+                md = pdf_text_tables_to_md(pdf_path)
+                if md and md.strip():
+                    md = (f"# {base}\n\n> 由 any-ocr-service 文本提取（含表格识别）\n\n"
+                          + md)
+                    if out_md:
+                        os.makedirs(os.path.dirname(os.path.abspath(out_md)), exist_ok=True)
+                        with open(out_md, "w", encoding="utf-8") as f:
+                            f.write(md)
+                    return md
+            except Exception as e:
+                logger.warning("PDF 文本提取失败，回退 OCR: %s", e)
+
+        # 扫描件/图片型 PDF：OCR 通道（RapidOCR 主通道 + 可选 VLM 精细）
         page_pngs = render_pdf_pages(pdf_path, zoom=settings.ocr_zoom)
         page_texts = []
         try:

@@ -14,6 +14,24 @@ def page_count(pdf_path: str) -> int:
         doc.close()
 
 
+def is_text_pdf(pdf_path: str, min_chars_per_page: int = 20) -> bool:
+    """判断是否为文本型 PDF（有可提取文本层）。
+
+    抽样前 5 页，平均每页文本字符数 >= min_chars_per_page 视为文本型；
+    否则视为扫描件/图片型（需走 OCR）。
+    """
+    doc = pymupdf.open(pdf_path)
+    try:
+        pages = doc.page_count
+        if pages == 0:
+            return False
+        sample = min(pages, 5)
+        total = sum(len(doc[i].get_text("text").strip()) for i in range(sample))
+        return (total / sample) >= min_chars_per_page
+    finally:
+        doc.close()
+
+
 def render_page(pdf_path: str, page_index: int, zoom: float = 2.5, out_png: str | None = None) -> str:
     """渲染指定页为 PNG 图片，返回图片路径。
 

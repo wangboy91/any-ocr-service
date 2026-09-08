@@ -7,7 +7,7 @@
 
 | 类别 | 格式 | 处理方式 | 说明 |
 |------|------|----------|------|
-| PDF | `.pdf` | **RapidOCR 整页识别**（可选 VLM 精细） | 扫描件/图片型最佳，纯文本 PDF 同样可识别 |
+| PDF | `.pdf` | 文本型→**文本+表格提取**（毫秒级）；扫描件→**RapidOCR 整页识别**（可选 VLM 精细） | 文本型保结构含表格识别，扫描件走 OCR |
 | Word | `.doc` `.docx` `.docm` | **anydoc**（首选）→ 内置解析回退 | 老格式原生解析，不再依赖 LibreOffice |
 | PowerPoint | `.ppt` `.pps` `.pot` `.pptx` `.pptm` `.ppsx` `.ppsm` | **anydoc**（首选）→ 内置解析回退 | 含演讲者备注/公式转LaTeX |
 | Excel | `.xls` `.xlsx` `.xlsm` `.xlsb` | **anydoc**（首选）→ 内置解析回退 | 合并单元格支持 |
