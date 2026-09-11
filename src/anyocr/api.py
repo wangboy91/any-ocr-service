@@ -8,22 +8,46 @@
          multipart: 上传文件 + out/use_vlm 表单字段
     POST /batch     {"files": [...], "out": "C:/out"}
 """
+import logging
 import os
 import tempfile
 import time
 
-from fastapi import FastAPI, File, Form, UploadFile
+from fastapi import FastAPI, File, Form, Request, UploadFile
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 from .config import settings
 from .core import AnyOcrEngine, VlmEngine, Region
 
-app = FastAPI(title="any-ocr-service", version="0.3.0")
+logger = logging.getLogger("anyocr.api")
+
+app = FastAPI(title="any-ocr-service", version="0.5.0")
 
 # 引擎（模型常驻，复用）
 _engine = AnyOcrEngine()
 _engine_lock_owner = "single"  # 简化：单 Worker 部署
+
+
+@app.middleware("http")
+async def request_logging(request: Request, call_next):
+    """请求日志中间件：记录方法/路径/状态码/耗时/客户端，附加 X-Process-Time-Ms 响应头。"""
+    start = time.perf_counter()
+    response = await call_next(request)
+    duration_ms = (time.perf_counter() - start) * 1000
+    response.headers["X-Process-Time-Ms"] = str(round(duration_ms, 1))
+
+    if request.url.path != "/health":  # 健康检查频繁，跳过避免刷屏
+        client = request.headers.get("x-forwarded-for") or (
+            request.client.host if request.client else "-")
+        ua = request.headers.get("user-agent", "-")[:60]
+        logger.info(
+            "%s %s%s -> %s | %.1fms | client=%s | ua=%s",
+            request.method, request.url.path,
+            ("?" + request.url.query) if request.url.query else "",
+            response.status_code, duration_ms, client, ua,
+        )
+    return response
 
 
 class ConvertRequest(BaseModel):
@@ -117,6 +141,10 @@ def batch(req: BatchRequest):
 
 def run_server(host: str | None = None, port: int | None = None):
     import uvicorn
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
+    )
     host = host or settings.api_host
     port = port or settings.api_port
     print(f"any-ocr-service 启动: http://{host}:{port}  (VLM {'就绪' if settings.vlm_ready else '未就绪'})")
